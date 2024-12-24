@@ -3,6 +3,7 @@ const {MongoClient, ObjectId} = require('mongodb')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
+const {v4:uuidv4} = require('uuid')
 const app = express()
 
 require('dotenv').config();
@@ -83,6 +84,7 @@ app.post('/register', async(request, response) => {
     
                 if(username !== undefined && email !== undefined && password !== undefined){
                     const userDetails = {
+                        userId: uuidv4(),
                         userName: username,
                         email: email,
                         password: hashedPassword,
@@ -124,8 +126,8 @@ app.post('/login', async(request, response) => {
             const verifyPassword = await bcrypt.compare(password, checkUserInDB[0].password)
     
             if(verifyPassword){
-                const token = jwt.sign({userId: checkUserInDB[0]._id}, 'MY_SECRET_TOKEN')
-                response.status(201).send({userId: checkUserInDB[0]._id, jwtToken: token, username: username})
+                const token = jwt.sign({userId: checkUserInDB[0].userId}, 'MY_SECRET_TOKEN')
+                response.status(201).send({userId: checkUserInDB[0].userId, jwtToken: token, username: username})
             }
             else{
                 response.status(401).send({message: "Incorrect Password"})
@@ -146,38 +148,26 @@ app.post('/tasks', authenticateToken, async(request, response) => {
     const {name, description, duedate, status, priority} = request.body
 
     const userCollection = client.db(process.env.DB_NAME).collection('users')
-    const userId = new ObjectId(request.userId)
-    const checkUserInDB = await userCollection.find({_id: userId}).toArray()
+    const {userId} = request
+    const checkUserInDB = await userCollection.find({userId: userId}).toArray()
     
     try{
         if(checkUserInDB.length === 1){
             if(name !== undefined && description !== undefined && duedate !== undefined){
                 
-                function parseDate(dateStr) {
-                    const [day, month, year] = dateStr.split('-');
-                    return new Date(year, month - 1, day); // Month is 0-indexed in Date
-                }
-                
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                const tasksCollection = client.db(process.env.DB_NAME).collection('tasks')
+                const newTask = {
+                    taskId: uuidv4(),
+                    userId: userId,
+                    name: name,
+                    description: description,
+                    dueDate: duedate,
+                    status: status,
+                    priority: priority
+                }    
 
-                const selectedDateStr = event.target.value;
-                const selectedDate = parseDate(selectedDateStr);
-                if (selectedDate < today) {
-                    response.status(404).send({message: "Invalid Due Date: cannot be in the past"})
-                } else {
-                    const tasksCollection = client.db(process.env.DB_NAME).collection('tasks')
-                    const newTask = {
-                        name: name,
-                        description: description,
-                        dueDate: duedate,
-                        status: status,
-                        priority: priority
-                    }
-
-                    await tasksCollection.insertOne(newTask)
-                    response.status(201).send({message: "New Task Added Successfully"})
-                }
+                await tasksCollection.insertOne(newTask)
+                response.status(201).send({message: "New Task Added Successfully"})
             }
             else{
                 response.status(404).send({message: "Enter all the fields"})
@@ -202,7 +192,7 @@ app.put('/tasks/:id', authenticateToken, async (request, response) => {
     
     try {
         // Find the task by taskId
-        const task = await tasksCollection.findOne({ _id: new ObjectId(taskId) })
+        const task = await tasksCollection.findOne({ taskId: taskId })
         
         if (task) {
             // Prepare the update object, only including non-null/undefined fields
@@ -213,28 +203,12 @@ app.put('/tasks/:id', authenticateToken, async (request, response) => {
             if (status !== undefined) updateFields.status = status
             if (priority !== undefined) updateFields.priority = priority
             
-            if (duedate !== undefined) {
-                // Parse the new due date in dd-mm-yyyy format
-                const parseDate = (dateStr) => {
-                    const [day, month, year] = dateStr.split('-');
-                    return new Date(year, month - 1, day); // Month is 0-indexed
-                }
-                const today = new Date();
-                today.setHours(0, 0, 0, 0); // Ensure comparison without time
-
-                const selectedDate = parseDate(duedate);
-
-                if (selectedDate < today) {
-                    return response.status(400).send({ message: "Invalid Due Date: cannot be in the past" });
-                }
-
-                updateFields.dueDate = duedate;
-            }
+            if (duedate !== undefined) updateFields.dueDate = duedate
 
             // If there are fields to update
             if (Object.keys(updateFields).length > 0) {
                 await tasksCollection.updateOne(
-                    { _id: new ObjectId(taskId) },
+                    { taskId: taskId },
                     { $set: updateFields }
                 )
                 response.status(201).send({ message: "Task updated successfully" })
@@ -253,7 +227,7 @@ app.put('/tasks/:id', authenticateToken, async (request, response) => {
 // API - 5 Get All Tasks of a User
 
 app.get('/tasks', authenticateToken, async(request, response) => {
-    const userId = new ObjectId(request.userId)
+    const {userId} = request
     
     const tasksCollection = client.db(process.env.DB_NAME).collection('tasks')
     
@@ -282,7 +256,7 @@ app.delete('/tasks/:id', authenticateToken, async(request, response) => {
     
     try {
         // Find and delete the task by taskId
-        const result = await tasksCollection.deleteOne({ _id: new ObjectId(taskId) })
+        const result = await tasksCollection.deleteOne({ taskId: taskId })
         
         if (result.deletedCount === 1) {
             response.status(201).send({ message: "Task deleted successfully" })

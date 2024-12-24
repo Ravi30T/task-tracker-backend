@@ -1,0 +1,20 @@
+{
+    "email": "ravi@gmail.com",
+    "username": "ravi",
+    "password": "ravi@123"
+}
+
+{
+    "username": "ravi",
+    "password": "ravi@123"
+}
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhYjUwZDRiZS1iMTdmLTQ5ZTYtYTE1MC1lZTdmNDBiNDg4ZTkiLCJpYXQiOjE3MzUwNDM4OTZ9.GXTcAb-2wr3pordrE4OLgRbGL8O8r8nFClye0jpDFR4
+
+{
+    "name": "Python",
+    "description": "Introduction",
+    "duedate": "25-12-2024",
+    "status": "In Progress",
+    "priority": "Low"
+}
