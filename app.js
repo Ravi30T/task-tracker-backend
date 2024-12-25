@@ -153,7 +153,7 @@ app.post('/tasks', authenticateToken, async(request, response) => {
     
     try{
         if(checkUserInDB.length === 1){
-            if(name !== undefined && description !== undefined && duedate !== undefined){
+            if(name !== "" && description !== "" && duedate !== ""){
                 
                 const tasksCollection = client.db(process.env.DB_NAME).collection('tasks')
                 const newTask = {
